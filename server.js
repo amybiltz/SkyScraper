@@ -1,39 +1,57 @@
-ar express = require("express");
-var logger = require("morgan");
-var mongoose = require("mongoose");
-const path = require("path");
+var express = require('express');
+var exphbs = require('express-handlebars');
+var bodyParser = require('body-parser');
+var mongoose = require('mongoose');
+
+var request = require('request'); // for web-scraping
+var cheerio = require('cheerio'); // for web-scraping
 
 
-// Our scraping tools
-// Axios is a promised-based http library, similar to jQuery's Ajax method
-// It works on the client and on the server
-
-// var PORT = process.env.PORT || 8080;
-var PORT = 3000;
-
-// Initialize Express
+// Initialize Express for debugging & body parsing
 var app = express();
-require("./routes/apiRoutes")(app);
+app.use(bodyParser.urlencoded({
+  extended: false
+}))
 
-// Configure middleware
+// Serve Static Content
+app.use(express.static(process.cwd() + '/public'));
 
-// Use morgan logger for logging requests
-app.use(logger("dev"));
-// Parse request body as JSON
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-// Make public a static folder
-app.use(express.static(path.join(__dirname, '/public')));
+// Express-Handlebars
+app.engine('handlebars', exphbs({defaultLayout: 'main'}));
+app.set('view engine', 'handlebars');
 
 
-// Connect to the Mongo DB
-// mongoose.connect("mongodb://localhost/mongoScraper", { useNewUrlParser: true });
+// Database Configuration with Mongoose
+// ---------------------------------------------------------------------------------------------------------------
+// Connect to localhost if not a production environment
+if(process.env.NODE_ENV == 'production'){
+  mongoose.connect('use when deployed to heroku');
+}
+else{
+  mongoose.connect('mongodb://localhost/SkyScraper');
+var db = mongoose.connection;
 
-var MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost/mongoScraper"
-mongoose.Promise = Promise;
-mongoose.connect(MONGODB_URI);
+// Show any Mongoose error
+db.on('error', function(err) {
+  console.log('Mongoose Error: ', err);
+});
 
-// Start the server
-app.listen(PORT, function () {
-    console.log("App running on port " + PORT + "!");
+// Once logged in to the db through mongoose, log a success message
+db.once('open', function() {
+  console.log('Mongoose connection successful.');
+});
+
+// Import the Comment and Article models
+var Comment = require('./models/Note.js');
+var Article = require('./models/Article.js');
+// ---------------------------------------------------------------------------------------------------------------
+
+// Import Routes/Controller
+var router = require('./controllers/controller.js');
+app.use('/', router);
+
+// Launch App
+var port = process.env.PORT || 3000;
+app.listen(port, function(){
+  console.log('Running on port: ' + port); 
 });
